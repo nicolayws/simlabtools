@@ -1,0 +1,17 @@
+site_name: SIMLab Tools
+
+theme:
+  name: material
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+
+nav:
+  - Home: index.md
+  - KickReader: kickreader.md

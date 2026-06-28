@@ -1,0 +1,8 @@
+[project]
+name = "simlabtools"
+version = "0.1"
+
+dependencies = [
+    "numpy",
+    "scipy"
+]
