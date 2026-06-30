@@ -1,7 +1,8 @@
 import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
-from scipy.interpolate import interp1d, CubicSpline, PchipInterpolator
+from scipy.interpolate import PchipInterpolator
+from scipy.signal import savgol_filter
 
 
 class KickReader:
@@ -258,6 +259,12 @@ class KickReader:
             self.camera['y']**2
         )
 
+        disp_smooth = savgol_filter(
+            disp,
+            window_length=50,
+            polyorder=3
+        )
+
         return np.gradient(
             disp,
             self.camera['time_from_trig']
@@ -279,4 +286,89 @@ class KickReader:
 
         return np.mean(
             self._velocity[:self.camera_idx]
+        )
+    
+    def summary(self) -> dict:
+        """
+        Returns a summary of the experiment
+
+        Returns
+        -------
+        dict    
+            Dictionary containing key experimental metrics.
+        """
+
+        if self.time is None:
+            raise RuntimeError(
+                "Call sync() before requesting summary"
+            )
+        
+        return {
+            "name": self.name,
+
+            "initial_velocity_m_s":
+                self.initial_velocity / 1000,
+            
+            "max_force_kN":
+                np.max(self.force),
+
+            "max_displacement_mm":
+                np.max(self.displacement),
+            
+            "test_duration_ms":
+                np.max(self.time),
+            
+            "n_force_samples":
+                len(self.kick["time"]),
+            
+            "n_camera_frames":
+                len(self.camera["image_nr"]),
+
+            "impact_force_idx":
+                self.kick_idx,
+
+            "impact_camera_idx":
+                self.camera_idx
+
+        }
+    
+    def print_summary(self):
+        """
+        Alternative to ``pprint(self.summary())``
+        """
+
+        s = self.summary()
+
+        print(f"\n{'='*50}")
+        print(f"Experiment summary: {s['name']}")
+        print(f"{'='*50}")
+
+        print(
+            f"Initial velocity      : "
+            f"{s['initial_velocity_m_s']:.2f} m/s"
+        )
+
+        print(
+            f"Maximum force         : "
+            f"{s['max_force_kN']:.2f} kN"
+        )
+
+        print(
+            f"Maximum displacement  : "
+            f"{s['max_displacement_mm']:.2f} mm"
+        )
+
+        print(
+            f"Test duration         : "
+            f"{s['test_duration_ms']:.2f} ms"
+        )
+
+        print(
+            f"Camera frames         : "
+            f"{s['n_camera_frames']}"
+        )
+
+        print(
+            f"Force samples         : "
+            f"{s['n_force_samples']}"
         )

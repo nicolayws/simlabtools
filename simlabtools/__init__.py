@@ -1,1 +1,1 @@
-from .KickReader import KickReader
+from .kick import KickReader
