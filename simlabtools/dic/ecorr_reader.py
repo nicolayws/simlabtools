@@ -31,6 +31,8 @@ class ECorrReader():
         self._strain: np.ndarray | None = None
         self._stress: np.ndarray | None = None
 
+        self.fracture_idx: int | None = None
+
         self.read()
 
     def read(self):
@@ -343,4 +345,10 @@ class ECorrReader():
 
         return self._force
 
+    def find_fracture(self):
+        """
+        Find fracture based on force drop
+        """
+        
+        raise RuntimeError("Not yet implemented")
     
