@@ -20,4 +20,4 @@ For full documentation visit [mkdocs.org](https://www.mkdocs.org).
 
 # SIMLabTools documentation
 
-*date* June 1, 2026 *Version*: 0.1
+**Date** June 1, 2026 **Version**: 0.1

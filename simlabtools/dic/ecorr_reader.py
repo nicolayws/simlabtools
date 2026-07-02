@@ -1,5 +1,5 @@
 import numpy as np
-from ReadMesh import Mesh
+from .ReadMesh import Mesh
 from pathlib import Path
 from tqdm import tqdm
 import matplotlib.pyplot as plt

@@ -1,4 +1,4 @@
-# SIMLab Tools
+# SIMLabTools
 
 Python utilities for experimental mechanics developed at SIMLab, NTNU.
 

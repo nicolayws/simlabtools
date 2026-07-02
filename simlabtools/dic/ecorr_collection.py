@@ -1,6 +1,7 @@
 from pathlib import Path
 from .ecorr_reader import ECorrReader
 from typing import Literal
+import numpy as np
 
 class ECorrCollection:
 
@@ -165,4 +166,246 @@ class ECorrCollection:
         ax.legend()
 
         return ax
-    
+
+    def save_txt(
+            self,
+            fpath: str | Path = "stress_strain_collection.csv"
+    ):
+        """
+        Save stress-strain data for all tests to a CSV file.
+
+        The output file contains two columns for each test:
+
+            {test_name}_strain
+            {test_name}_stress
+
+        Tests with different numbers of data points are automatically
+        padded with NaN values.
+
+        Parameters
+        ----------
+        fpath : str or Path, optional
+            Path to output CSV file.
+
+        Examples
+        --------
+        >>> collection.save("stress_strain_collection.csv")
+
+        The data can later be loaded with NumPy:
+
+        >>> data = np.genfromtxt(
+        ...     "stress_strain_collection.csv",
+        ...     delimiter=",",
+        ...     names=True
+        ... )
+        >>> strain = data["Test01_strain"]
+        >>> stress = data["Test01_stress"]
+        """
+
+        fpath = Path(fpath)
+
+        if len(self) == 0:
+            raise RuntimeError(
+                "Cannot save an empty ECorrCollection."
+            )
+
+        data = {}
+
+        for test in self:
+
+            if not hasattr(test, "stress"):
+                raise RuntimeError(
+                    f"Stress-strain has not been computed "
+                    f"for test '{test.name}'."
+                )
+
+            data[f"{test.name}_strain"] = np.asarray(
+                test.strain
+            )
+            data[f"{test.name}_stress"] = np.asarray(
+                test.stress
+            )
+
+        max_len = max(
+            len(v) for v in data.values()
+        )
+
+        out = {}
+
+        for key, values in data.items():
+
+            arr = np.full(max_len, np.nan)
+            arr[:len(values)] = values
+            out[key] = arr
+
+        header = ",".join(out.keys())
+
+        np.savetxt(
+            fpath,
+            np.column_stack(list(out.values())),
+            delimiter=",",
+            header=header,
+            comments=""
+        )
+
+    def save_npz(
+            self,
+            fpath: str | Path = "stress_strain_collection.npz"
+    ):
+        """
+        Save stress-strain data for all tests to a compressed NumPy archive.
+
+        Each test is stored as separate arrays using the keys
+
+            {test_name}_strain
+            {test_name}_stress
+
+        Additional quantities, such as force and displacement, are saved
+        if available.
+
+        Parameters
+        ----------
+        fpath : str or Path, optional
+            Path to output `.npz` file.
+
+        Raises
+        ------
+        RuntimeError
+            If the collection is empty or if stress-strain data have not
+            been computed for one or more tests.
+
+        Examples
+        --------
+        Save the collection:
+
+        >>> collection.save_npz()
+
+        Load the data:
+
+        >>> import numpy as np
+        >>> data = np.load("stress_strain_collection.npz")
+        >>> strain = data["Test01_strain"]
+        >>> stress = data["Test01_stress"]
+
+        List available arrays:
+
+        >>> print(data.files)
+        """
+
+        fpath = Path(fpath)
+
+        if len(self) == 0:
+            raise RuntimeError(
+                "Cannot save an empty ECorrCollection."
+            )
+
+        data = {}
+
+        for test in self:
+
+            if test._stress is None or test._strain is None:
+                raise RuntimeError(
+                    f"Stress-strain has not been computed "
+                    f"for test '{test.name}'."
+                )
+
+            data[f"{test.name}_strain"] = test.strain
+            data[f"{test.name}_stress"] = test.stress
+
+            if test._force is not None:
+                data[f"{test.name}_force"] = test.force
+
+            if test.node1 is not None:
+                data[f"{test.name}_node1"] = np.asarray(test.node1)
+
+            if test.node2 is not None:
+                data[f"{test.name}_node2"] = np.asarray(test.node2)
+
+            if test.fracture_idx is not None:
+                data[f"{test.name}_fracture_idx"] = np.asarray(
+                    test.fracture_idx
+                )
+
+        np.savez_compressed(
+            fpath,
+            **data
+        )
+
+    @classmethod
+    def load_npz(
+            cls,
+            fpath: str | Path
+    ):
+        """
+        Load stress-strain data from a NumPy archive.
+
+        Parameters
+        ----------
+        fpath : str or Path
+            Path to `.npz` file created with :meth:`save_npz`.
+
+        Returns
+        -------
+        ECorrCollection
+            Collection containing the stored tests.
+
+        Examples
+        --------
+        >>> collection = ECorrCollection.load_npz(
+        ...     "stress_strain_collection.npz"
+        ... )
+
+        >>> collection[0].strain
+        >>> collection[0].stress
+        """
+
+        from types import SimpleNamespace
+
+        data = np.load(fpath)
+
+        names = sorted({
+            key.removesuffix("_strain")
+            for key in data.files
+            if key.endswith("_strain")
+        })
+
+        tests = []
+
+        for name in names:
+
+            test = ECorrReader.__new__(ECorrReader)
+
+            test.filepath = None  # type: ignore
+            test.name = name
+            test.meshes = []
+
+            test._strain = data[f"{name}_strain"]
+            test._stress = data[f"{name}_stress"]
+
+            test._force = (
+                data[f"{name}_force"]
+                if f"{name}_force" in data
+                else None
+            )
+
+            test.node1 = (
+                int(data[f"{name}_node1"])
+                if f"{name}_node1" in data
+                else None
+            )
+
+            test.node2 = (
+                int(data[f"{name}_node2"])
+                if f"{name}_node2" in data
+                else None
+            )
+
+            test.fracture_idx = (
+                int(data[f"{name}_fracture_idx"])
+                if f"{name}_fracture_idx" in data
+                else None
+            )
+
+            tests.append(test)
+
+        return cls(tests)
